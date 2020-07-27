@@ -2,6 +2,7 @@
    Eventually most postprocessor tests should probably be moved into this format."""
 
 from pathlib import Path
+from . import diagnostics
 from .util_test import make_test, check_ast_testing_string, ast_to_testing_string
 from .types import FileId
 
@@ -33,7 +34,7 @@ Main Heading
         check_ast_testing_string(
             page.ast,
             """
-<root>
+<root fileid="index.txt">
     <target domain="std" name="label" html_id="std-label-a-MixedCase-Label">
         <target_identifier ids="['a-MixedCase-Label']"><text>Main Heading</text></target_identifier>
     </target>
@@ -102,7 +103,7 @@ Program 2
         check_ast_testing_string(
             page.ast,
             """
-<root><section>
+<root fileid="program1.txt"><section>
     <heading id="program-1"><text>Program 1</text></heading>
 
     <target domain="std" name="program" html_id="std-program-program1">
@@ -120,23 +121,25 @@ Program 2
 
     <directive name="include">
         <text>/includes/fact.rst</text>
-        <paragraph>
-            <ref_role domain="std" name="option" target="program1.--verbose" fileid="['program1', 'std-option-program1.--verbose']">
-                <literal><text>program1 --verbose</text></literal>
-            </ref_role>
-        </paragraph>
+        <root fileid="includes/fact.rst">
+            <paragraph>
+                <ref_role domain="std" name="option" target="program1.--verbose" fileid="['program1', 'std-option-program1.--verbose']">
+                    <literal><text>program1 --verbose</text></literal>
+                </ref_role>
+            </paragraph>
 
-        <paragraph>
-            <ref_role domain="std" name="option" target="program1.--verbose" fileid="['program1', 'std-option-program1.--verbose']">
-                <literal><text>program1 --verbose</text></literal>
-            </ref_role>
-        </paragraph>
+            <paragraph>
+                <ref_role domain="std" name="option" target="program1.--verbose" fileid="['program1', 'std-option-program1.--verbose']">
+                    <literal><text>program1 --verbose</text></literal>
+                </ref_role>
+            </paragraph>
 
-        <paragraph>
-            <ref_role domain="std" name="option" target="program2.--verbose" fileid="['program2', 'std-option-program2.--verbose']">
-                <literal><text>program2 --verbose</text></literal>
-            </ref_role>
-        </paragraph>
+            <paragraph>
+                <ref_role domain="std" name="option" target="program2.--verbose" fileid="['program2', 'std-option-program2.--verbose']">
+                    <literal><text>program2 --verbose</text></literal>
+                </ref_role>
+            </paragraph>
+        </root>
     </directive>
 </section></root>
         """,
@@ -146,7 +149,7 @@ Program 2
         check_ast_testing_string(
             page.ast,
             """
-<root><section>
+<root fileid="program2.txt"><section>
     <heading id="program-2"><text>Program 2</text></heading>
 
     <target domain="std" name="program" html_id="std-program-program2">
@@ -164,24 +167,54 @@ Program 2
 
     <directive name="include">
         <text>/includes/fact.rst</text>
-        <paragraph>
-            <ref_role domain="std" name="option" target="program2.--verbose" fileid="['program2', 'std-option-program2.--verbose']">
-                <literal><text>program2 --verbose</text></literal>
-            </ref_role>
-        </paragraph>
+        <root fileid="includes/fact.rst">
+            <paragraph>
+                <ref_role domain="std" name="option" target="program2.--verbose" fileid="['program2', 'std-option-program2.--verbose']">
+                    <literal><text>program2 --verbose</text></literal>
+                </ref_role>
+            </paragraph>
 
-        <paragraph>
-            <ref_role domain="std" name="option" target="program1.--verbose" fileid="['program1', 'std-option-program1.--verbose']">
-                <literal><text>program1 --verbose</text></literal>
-            </ref_role>
-        </paragraph>
+            <paragraph>
+                <ref_role domain="std" name="option" target="program1.--verbose" fileid="['program1', 'std-option-program1.--verbose']">
+                    <literal><text>program1 --verbose</text></literal>
+                </ref_role>
+            </paragraph>
 
-        <paragraph>
-            <ref_role domain="std" name="option" target="program2.--verbose" fileid="['program2', 'std-option-program2.--verbose']">
-                <literal><text>program2 --verbose</text></literal>
-            </ref_role>
-        </paragraph>
+            <paragraph>
+                <ref_role domain="std" name="option" target="program2.--verbose" fileid="['program2', 'std-option-program2.--verbose']">
+                    <literal><text>program2 --verbose</text></literal>
+                </ref_role>
+            </paragraph>
+        </root>
     </directive>
 </section></root>
         """,
         )
+
+
+def test_correct_diagnostic_path() -> None:
+    with make_test(
+        {
+            Path(
+                "source/index.txt"
+            ): """
+.. _a-MixedCase-Label:
+
+============
+Main Heading
+============
+
+.. include:: /includes/fact.rst
+""",
+            Path(
+                "source/includes/fact.rst"
+            ): """
+:ref:`missing-ref`
+""",
+        }
+    ) as result:
+        assert {
+            k: [type(diag) for diag in v] for k, v in result.diagnostics.items() if v
+        } == {
+            FileId("includes/fact.rst"): [diagnostics.TargetNotFound]
+        }, "Incorrect diagnostics raised"
