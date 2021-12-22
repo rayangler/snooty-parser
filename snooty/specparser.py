@@ -30,7 +30,10 @@ from typing_extensions import Protocol
 from . import util
 from .flutter import check_type, checked
 
-PACKAGE_ROOT = Path(sys.modules["snooty"].__file__).resolve().parent
+assert isinstance(sys.modules["snooty"].__file__, str)
+snooty_file: str = sys.modules["snooty"].__file__
+
+PACKAGE_ROOT = Path(snooty_file).resolve().parent
 if PACKAGE_ROOT.is_file():
     PACKAGE_ROOT = PACKAGE_ROOT.parent
 

@@ -12,6 +12,7 @@ from typing import (
     Set,
     TextIO,
     Tuple,
+    Union,
 )
 
 import fett
@@ -415,9 +416,7 @@ class OpenAPI:
             )
 
         # Substitute refs
-        stack: List[Tuple[Dict[str, Any], str, Dict[str, Any]]] = [
-            ({}, "<root>", self.data)
-        ]
+        stack: List[Tuple[Any, Union[str, int], Any]] = [({}, "<root>", self.data)]
         while stack:
             parent, key, cursor = stack.pop()
             if isinstance(cursor, Dict):
